@@ -489,42 +489,61 @@ async function run() {
     for (const page of pages) {
       const { width, height } = page.getSize();
 
-      // Рисуем текст на canvas с кириллицей
-      const scale = 3; // retina качество
+      // Рисуем текст на canvas с переносом строк
+      const scale = 3;
+      const pad = 40;
+      const maxW = width - pad * 2; // максимальная ширина текста в PDF
+
+      // Функция переноса текста на строки
+      function wrapText(ctx, text, maxPxWidth) {
+        const words = text.split(' ');
+        const lines = [];
+        let line = '';
+        for (const word of words) {
+          const test = line ? line + ' ' + word : word;
+          if (ctx.measureText(test).width > maxPxWidth && line) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+        return lines;
+      }
+
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+      const fs = fontSize * scale;
+      ctx.font = `bold ${fs}px Arial, sans-serif`;
 
-      // Измеряем текст
-      ctx.font = `bold ${fontSize * scale}px Arial, sans-serif`;
-      const measured = ctx.measureText(name);
-      const textW = measured.width;
-      const textH = fontSize * scale * 1.4;
+      const lines = wrapText(ctx, name, maxW * scale);
+      const lineH = fs * 1.35;
+      const canvasW = maxW * scale;
+      const canvasH = lines.length * lineH + 10;
 
-      canvas.width = textW + 20;
-      canvas.height = textH + 10;
-
-      // Прозрачный фон
+      canvas.width = canvasW;
+      canvas.height = canvasH;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Рисуем текст
-      ctx.font = `bold ${fontSize * scale}px Arial, sans-serif`;
+      ctx.font = `bold ${fs}px Arial, sans-serif`;
       ctx.fillStyle = '#' + colorHex;
       ctx.textBaseline = 'top';
-      ctx.fillText(name, 10, 5);
+      ctx.textAlign = 'center';
 
-      // Конвертируем в PNG bytes
+      lines.forEach((line, i) => {
+        ctx.fillText(line, canvasW / 2, i * lineH + 5);
+      });
+
       const dataUrl = canvas.toDataURL('image/png');
       const base64 = dataUrl.split(',')[1];
       const pngBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
-      // Вшиваем изображение в PDF
       const img = await pdfDoc.embedPng(pngBytes);
       const imgW = canvas.width / scale;
       const imgH = canvas.height / scale;
 
       // Позиция
       let x, y;
-      const pad = 40;
       const [vert, horiz] = selectedPos.split('-');
       if (horiz === 'left') x = pad;
       else if (horiz === 'center') x = (width - imgW) / 2;
