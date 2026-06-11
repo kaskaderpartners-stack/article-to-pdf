@@ -421,13 +421,24 @@ async function loadPdf(file) {
   checkReady();
 }
 
+function extractShortName(fullName) {
+  // Берём 4-е слово
+  const words = fullName.trim().split(/\s+/);
+  const word4 = words[3] || words[words.length - 1];
+  // Берём последние скобки типа (650/500)
+  const brackets = fullName.match(/\(\d+[\/\d]*\)/g);
+  const lastBracket = brackets ? brackets[brackets.length - 1] : '';
+  return (word4 + (lastBracket ? ' ' + lastBracket : '')).trim();
+}
+
 function lookupArticle() {
   const art = document.getElementById('articleInput').value.trim().toLowerCase();
   const preview = document.getElementById('foundPreview');
   const nameEl = document.getElementById('foundName');
   if (!art || Object.keys(db).length === 0) { preview.classList.remove('visible'); checkReady(); return; }
   if (db[art]) {
-    nameEl.textContent = db[art];
+    const short = extractShortName(db[art]);
+    nameEl.textContent = short + ' [' + db[art].substring(0, 40) + '...]';
     preview.className = 'found-preview visible';
   } else {
     nameEl.textContent = 'Артикул не найден в базе';
@@ -472,8 +483,9 @@ function hexToRgb(hex) {
 
 async function run() {
   const art = document.getElementById('articleInput').value.trim().toLowerCase();
-  const name = db[art];
-  if (!name || !pdfBytes) return;
+  const fullName = db[art];
+  if (!fullName || !pdfBytes) return;
+  const name = extractShortName(fullName);
 
   const fontSize = parseInt(document.getElementById('fontSize').value) || 24;
   const colorHex = (document.getElementById('fontColor').value || '000000').replace('#','');
@@ -489,12 +501,12 @@ async function run() {
     for (const page of pages) {
       const { width, height } = page.getSize();
 
-      // Рисуем текст на canvas с переносом строк
+      // Рисуем текст на canvas с автоподбором размера
       const scale = 3;
       const pad = 40;
-      const maxW = width - pad * 2; // максимальная ширина текста в PDF
+      const maxW = width - pad * 2;
+      const maxH = height * 0.4; // максимум 40% высоты страницы
 
-      // Функция переноса текста на строки
       function wrapText(ctx, text, maxPxWidth) {
         const words = text.split(' ');
         const lines = [];
@@ -514,13 +526,21 @@ async function run() {
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      const fs = fontSize * scale;
-      ctx.font = `bold ${fs}px Arial, sans-serif`;
 
-      const lines = wrapText(ctx, name, maxW * scale);
-      const lineH = fs * 1.35;
+      // Автоподбор шрифта — уменьшаем пока не влезет
+      let fs = fontSize * scale;
+      let lines, lineH, totalH;
+      while (fs > 8 * scale) {
+        ctx.font = `bold ${fs}px Arial, sans-serif`;
+        lines = wrapText(ctx, name, maxW * scale);
+        lineH = fs * 1.35;
+        totalH = lines.length * lineH;
+        if (totalH <= maxH * scale) break;
+        fs -= scale;
+      }
+
       const canvasW = maxW * scale;
-      const canvasH = lines.length * lineH + 10;
+      const canvasH = totalH + 10;
 
       canvas.width = canvasW;
       canvas.height = canvasH;
