@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Артикул → PDF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e8eaf0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .logo {
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #4a5568;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #556;
+    margin-bottom: 40px;
+  }
+
+  .card {
+    background: #1a1d27;
+    border: 1px solid #252836;
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%;
+    max-width: 520px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #4a5568;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-num {
+    background: #252836;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: #7c8db5;
+    flex-shrink: 0;
+  }
+
+  .drop-zone {
+    border: 2px dashed #252836;
+    border-radius: 12px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: #3d7aed;
+    background: rgba(61,122,237,0.05);
+  }
+
+  .drop-zone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon { font-size: 28px; margin-bottom: 8px; }
+
+  .drop-label {
+    font-size: 14px;
+    color: #7c8db5;
+  }
+
+  .drop-label span { color: #3d7aed; }
+
+  .file-info {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #3dbf6e;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .file-info.visible { display: flex; }
+
+  .db-stats {
+    margin-top: 12px;
+    background: #252836;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #7c8db5;
+    display: none;
+  }
+
+  .db-stats.visible { display: block; }
+
+  .db-stats strong { color: #e8eaf0; }
+
+  input[type=text] {
+    width: 100%;
+    background: #252836;
+    border: 1px solid #2e3347;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 15px;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 1px;
+  }
+
+  input[type=text]:focus {
+    border-color: #3d7aed;
+  }
+
+  input[type=text]::placeholder { color: #3a4060; letter-spacing: 0; }
+
+  .found-preview {
+    margin-top: 12px;
+    background: #252836;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    display: none;
+  }
+
+  .found-preview.visible { display: block; }
+  .found-preview .label { color: #4a5568; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .found-preview .value { color: #3dbf6e; font-weight: 600; font-size: 15px; }
+  .found-preview.not-found .value { color: #e05555; }
+
+  .font-settings {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .setting-group label {
+    display: block;
+    font-size: 11px;
+    color: #4a5568;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .setting-group select,
+  .setting-group input[type=number] {
+    width: 100%;
+    background: #252836;
+    border: 1px solid #2e3347;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: #e8eaf0;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .position-grid {
+    margin-top: 14px;
+  }
+
+  .position-grid label {
+    font-size: 11px;
+    color: #4a5568;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .pos-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .pos-btn {
+    background: #252836;
+    border: 1px solid #2e3347;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 11px;
+    color: #7c8db5;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+
+  .pos-btn:hover { border-color: #3d7aed; color: #3d7aed; }
+  .pos-btn.active { background: #1e3a7a; border-color: #3d7aed; color: #fff; }
+
+  .btn-run {
+    width: 100%;
+    max-width: 520px;
+    background: #3d7aed;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-run:hover { background: #2d6adc; transform: translateY(-1px); }
+  .btn-run:disabled { background: #252836; color: #3a4060; cursor: not-allowed; transform: none; }
+
+  .status-bar {
+    width: 100%;
+    max-width: 520px;
+    margin-top: 12px;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    display: none;
+  }
+
+  .status-bar.visible { display: block; }
+  .status-bar.success { background: rgba(61,191,110,0.1); border: 1px solid rgba(61,191,110,0.3); color: #3dbf6e; }
+  .status-bar.error { background: rgba(224,85,85,0.1); border: 1px solid rgba(224,85,85,0.3); color: #e05555; }
+  .status-bar.loading { background: rgba(61,122,237,0.1); border: 1px solid rgba(61,122,237,0.2); color: #7aabff; }
+
+  .divider { width: 100%; max-width: 520px; height: 1px; background: #1e2130; margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="logo">Азбука Детали</div>
+<h1>Артикул → PDF</h1>
+<p class="subtitle">Загрузи базу, укажи артикул, получи PDF с названием</p>
+
+<!-- ШАГ 1: Excel база -->
+<div class="card">
+  <div class="card-title"><div class="step-num">1</div> База данных (Excel)</div>
+  <div class="drop-zone" id="xlsxZone">
+    <input type="file" id="xlsxInput" accept=".xlsx,.xls,.xlsm">
+    <div class="drop-icon">📊</div>
+    <div class="drop-label">Перетащи файл или <span>выбери</span></div>
+    <div class="drop-label" style="font-size:12px;margin-top:4px;color:#3a4060">.xlsx / .xls</div>
+  </div>
+  <div class="file-info" id="xlsxInfo">✅ <span id="xlsxName"></span></div>
+  <div class="db-stats" id="dbStats">
+    Загружено записей: <strong id="dbCount">0</strong> &nbsp;·&nbsp; Артикул: колонка A &nbsp;·&nbsp; Название: колонка C
+  </div>
+</div>
+
+<!-- ШАГ 2: Артикул -->
+<div class="card">
+  <div class="card-title"><div class="step-num">2</div> Артикул</div>
+  <input type="text" id="articleInput" placeholder="Напр. LF-5172" oninput="lookupArticle()">
+  <div class="found-preview" id="foundPreview">
+    <div class="label">Найдено название</div>
+    <div class="value" id="foundName"></div>
+  </div>
+</div>
+
+<!-- ШАГ 3: PDF -->
+<div class="card">
+  <div class="card-title"><div class="step-num">3</div> PDF файл</div>
+  <div class="drop-zone" id="pdfZone">
+    <input type="file" id="pdfInput" accept=".pdf">
+    <div class="drop-icon">📄</div>
+    <div class="drop-label">Перетащи PDF или <span>выбери</span></div>
+  </div>
+  <div class="file-info" id="pdfInfo">✅ <span id="pdfName"></span></div>
+</div>
+
+<!-- ШАГ 4: Настройки -->
+<div class="card">
+  <div class="card-title"><div class="step-num">4</div> Настройки текста</div>
+
+  <div class="font-settings">
+    <div class="setting-group">
+      <label>Размер шрифта</label>
+      <input type="number" id="fontSize" value="24" min="8" max="120">
+    </div>
+    <div class="setting-group">
+      <label>Цвет (hex)</label>
+      <input type="text" id="fontColor" value="000000" placeholder="000000" style="letter-spacing:1px">
+    </div>
+  </div>
+
+  <div class="position-grid" style="margin-top:14px">
+    <label>Позиция на странице</label>
+    <div class="pos-buttons">
+      <div class="pos-btn" onclick="setPos('top-left')">↖ Верх лево</div>
+      <div class="pos-btn" onclick="setPos('top-center')">↑ Верх центр</div>
+      <div class="pos-btn" onclick="setPos('top-right')">↗ Верх право</div>
+      <div class="pos-btn" onclick="setPos('middle-left')">← Середина лево</div>
+      <div class="pos-btn active" onclick="setPos('middle-center')">✦ По центру</div>
+      <div class="pos-btn" onclick="setPos('middle-right')">→ Середина право</div>
+      <div class="pos-btn" onclick="setPos('bottom-left')">↙ Низ лево</div>
+      <div class="pos-btn" onclick="setPos('bottom-center')">↓ Низ центр</div>
+      <div class="pos-btn" onclick="setPos('bottom-right')">↘ Низ право</div>
+    </div>
+  </div>
+</div>
+
+<div id="fontUploadCard" class="card" style="max-width:520px;width:100%;display:none">
+  <div class="card-title"><div class="step-num">!</div> Загрузи шрифт вручную (TTF с кириллицей)</div>
+  <p style="font-size:13px;color:#7c8db5;margin-bottom:12px">
+    Скачай любой TTF-шрифт с кириллицей, например 
+    <a href="https://fonts.google.com/specimen/Roboto" target="_blank" style="color:#3d7aed">Roboto</a> или 
+    <a href="https://fonts.google.com/noto/specimen/Noto+Sans" target="_blank" style="color:#3d7aed">Noto Sans</a> 
+    → Download family → распакуй zip → загрузи .ttf файл сюда.
+  </p>
+  <div class="drop-zone" id="fontZone">
+    <input type="file" id="fontInput" accept=".ttf,.otf">
+    <div class="drop-icon">🔤</div>
+    <div class="drop-label">Загрузи .ttf шрифт</div>
+  </div>
+  <div class="file-info" id="fontInfo">✅ <span id="fontName"></span></div>
+</div>
+<button class="btn-run" id="runBtn" onclick="run()" disabled>⚡ Вставить название в PDF</button>
+<div id="pdfPreview" style="display:none;width:100%;max-width:520px;margin-top:16px">
+  <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#4a5568;margin-bottom:10px;text-align:center">
+    📄 Готовый PDF — долгое нажатие → Сохранить
+  </div>
+  <iframe id="pdfFrame" style="width:100%;height:600px;border-radius:12px;border:1px solid #252836" src=""></iframe>
+</div>
+<div class="status-bar" id="statusBar"></div>
+
+<script>
+let db = {};          // артикул -> название
+let pdfBytes = null;
+let selectedPos = 'middle-center';
+
+// Drag-over visual
+['xlsxZone','pdfZone'].forEach(id => {
+  const zone = document.getElementById(id);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => zone.classList.remove('drag-over'));
+});
+
+document.getElementById('xlsxInput').addEventListener('change', e => loadXlsx(e.target.files[0]));
+document.getElementById('fontInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  window._manualFontBytes = await file.arrayBuffer();
+  document.getElementById('fontName').textContent = file.name;
+  document.getElementById('fontInfo').classList.add('visible');
+});
+document.getElementById('pdfInput').addEventListener('change', e => loadPdf(e.target.files[0]));
+
+function loadXlsx(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const wb = XLSX.read(evt.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      db = {};
+      let count = 0;
+      rows.forEach(row => {
+        const art = String(row[0] || '').trim();
+        const name = String(row[2] || '').trim();
+        if (art && name) { db[art.toLowerCase()] = name; count++; }
+      });
+      document.getElementById('xlsxName').textContent = file.name;
+      document.getElementById('xlsxInfo').classList.add('visible');
+      document.getElementById('dbCount').textContent = count;
+      document.getElementById('dbStats').classList.add('visible');
+      lookupArticle();
+      checkReady();
+    } catch(e) {
+      showStatus('Ошибка чтения Excel: ' + e.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function loadPdf(file) {
+  if (!file) return;
+  pdfBytes = await file.arrayBuffer();
+  document.getElementById('pdfName').textContent = file.name;
+  document.getElementById('pdfInfo').classList.add('visible');
+  checkReady();
+}
+
+function lookupArticle() {
+  const art = document.getElementById('articleInput').value.trim().toLowerCase();
+  const preview = document.getElementById('foundPreview');
+  const nameEl = document.getElementById('foundName');
+  if (!art || Object.keys(db).length === 0) { preview.classList.remove('visible'); checkReady(); return; }
+  if (db[art]) {
+    nameEl.textContent = db[art];
+    preview.className = 'found-preview visible';
+  } else {
+    nameEl.textContent = 'Артикул не найден в базе';
+    preview.className = 'found-preview visible not-found';
+  }
+  checkReady();
+}
+
+function setPos(pos) {
+  selectedPos = pos;
+  document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function checkReady() {
+  const art = document.getElementById('articleInput').value.trim().toLowerCase();
+  const ready = Object.keys(db).length > 0 && pdfBytes && art && db[art];
+  document.getElementById('runBtn').disabled = !ready;
+}
+
+function calcXY(pos, pageW, pageH, textW, fontSize) {
+  const pad = 40;
+  const [vert, horiz] = pos.split('-');
+  let x, y;
+  if (horiz === 'left') x = pad;
+  else if (horiz === 'center') x = (pageW - textW) / 2;
+  else x = pageW - textW - pad;
+
+  if (vert === 'top') y = pageH - pad - fontSize;
+  else if (vert === 'middle') y = (pageH - fontSize) / 2;
+  else y = pad;
+
+  return { x, y };
+}
+
+function hexToRgb(hex) {
+  hex = hex.replace('#','');
+  if (hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+  const n = parseInt(hex, 16);
+  return { r: ((n>>16)&255)/255, g: ((n>>8)&255)/255, b: (n&255)/255 };
+}
+
+async function run() {
+  const art = document.getElementById('articleInput').value.trim().toLowerCase();
+  const name = db[art];
+  if (!name || !pdfBytes) return;
+
+  const fontSize = parseInt(document.getElementById('fontSize').value) || 24;
+  const colorHex = (document.getElementById('fontColor').value || '000000').replace('#','');
+
+  showStatus('Обрабатываю PDF...', 'loading');
+  document.getElementById('runBtn').disabled = true;
+
+  try {
+    const { PDFDocument, rgb } = PDFLib;
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
+
+    for (const page of pages) {
+      const { width, height } = page.getSize();
+
+      // Рисуем текст на canvas с кириллицей
+      const scale = 3; // retina качество
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Измеряем текст
+      ctx.font = `bold ${fontSize * scale}px Arial, sans-serif`;
+      const measured = ctx.measureText(name);
+      const textW = measured.width;
+      const textH = fontSize * scale * 1.4;
+
+      canvas.width = textW + 20;
+      canvas.height = textH + 10;
+
+      // Прозрачный фон
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Рисуем текст
+      ctx.font = `bold ${fontSize * scale}px Arial, sans-serif`;
+      ctx.fillStyle = '#' + colorHex;
+      ctx.textBaseline = 'top';
+      ctx.fillText(name, 10, 5);
+
+      // Конвертируем в PNG bytes
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64 = dataUrl.split(',')[1];
+      const pngBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
+      // Вшиваем изображение в PDF
+      const img = await pdfDoc.embedPng(pngBytes);
+      const imgW = canvas.width / scale;
+      const imgH = canvas.height / scale;
+
+      // Позиция
+      let x, y;
+      const pad = 40;
+      const [vert, horiz] = selectedPos.split('-');
+      if (horiz === 'left') x = pad;
+      else if (horiz === 'center') x = (width - imgW) / 2;
+      else x = width - imgW - pad;
+      if (vert === 'top') y = height - imgH - pad;
+      else if (vert === 'middle') y = (height - imgH) / 2;
+      else y = pad;
+
+      page.drawImage(img, { x, y, width: imgW, height: imgH });
+    }
+
+    const outBytes = await pdfDoc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    // Конвертируем в base64 для показа внутри страницы
+    const reader = new FileReader();
+    reader.onload = function() {
+      const base64pdf = reader.result;
+      // Показываем PDF прямо на странице
+      const preview = document.getElementById('pdfPreview');
+      const iframe = document.getElementById('pdfFrame');
+      iframe.src = base64pdf;
+      preview.style.display = 'block';
+      preview.scrollIntoView({ behavior: 'smooth' });
+      showStatus('✅ Готово! PDF готов — листай вниз, долгое нажатие на PDF → "Сохранить в Файлы"', 'success');
+    };
+    reader.readAsDataURL(blob);
+  } catch(e) {
+    showStatus('Ошибка: ' + e.message, 'error');
+  }
+
+  document.getElementById('runBtn').disabled = false;
+}
+
+function showStatus(msg, type) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.className = 'status-bar visible ' + type;
+}
+</script>
+</body>
+</html>
